@@ -11,6 +11,7 @@ require (
 	github.com/godbus/dbus/v5 v5.0.4 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/miekg/dns v1.1.62 // indirect
+	github.com/moby/sys/mountinfo v0.7.2 // indirect
 	github.com/opencontainers/runtime-spec v1.0.2 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	golang.org/x/exp v0.0.0-20230224173230-c95f2b4c22f2 // indirect

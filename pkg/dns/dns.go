@@ -42,6 +42,7 @@ func StartDNSMonitoringProxy(domainsToBlock []string) (*DNSProxy, error) {
 		domainsToBlock:       domainsToBlock,
 		downstreamClient:     downstreamClient,
 		downstreamServerAddr: downstreamServerAddr,
+		DNSLog: 						 make(map[string]int),
 	}
 	server := &dns.Server{Addr: fmt.Sprintf(":%d", listenPort), Net: "udp", Handler: serverHandler}
 
@@ -157,8 +158,10 @@ func (b *blockingDNSHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		// Track the DNS request
 		b.dnsLogMu.Lock()
 		if count, exists := b.DNSLog[q.Name]; exists {
+			fmt.Printf("Exiting: DNS request for %s, count: %d\n", q.Name, count)
 			b.DNSLog[q.Name] = count + 1
 		} else {
+			fmt.Printf("New: DNS request for %s, count: 1\n", q.Name)
 			b.DNSLog[q.Name] = 1
 		}
 		b.dnsLogMu.Unlock()
