@@ -15,9 +15,6 @@ import (
 func main() {
 	fmt.Println("Let's have a peak at what DNS requests are made by this process on port 53!")
 
-	// TODO: Bug - The DNS upstream server is also redirected by the attached eBPF program
-	//       because we're running the dns server in the same cgroup here we need to exclude it
-	//       somehow so it can forward to the real upstream DNS server.
 	dns, err := dns.StartDNSMonitoringProxy([]string{"example.com"})
 	if err != nil {
 		fmt.Printf("Failed to start DNS blocking proxy: %v\n", err)

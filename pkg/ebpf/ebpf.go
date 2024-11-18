@@ -34,9 +34,17 @@ func AttachRedirectorToCGroup(cGroupPath string, dnsProxyPort int) error {
 		return fmt.Errorf("dnsProxyPort value %d out of range for uint32", dnsProxyPort)
 	}
 
+	// Tell the eBPF program where we're hosting the DNS proxy
 	err = spec.Variables["const_dns_proxy_port"].Set(uint32(dnsProxyPort)) //nolint:gosec // DNSProxyPort is checked above to be in range
 	if err != nil {
 		return fmt.Errorf("setting const_dns_proxy_port port variable failed: %w", err)
+	}
+
+	// Tell the eBPF program about the DNS proxy PID so it is allowed to send requests to upstream dns servers
+	// without having them redirected back to the proxy
+	err = spec.Variables["const_dns_proxy_pid"].Set(uint32(os.Getpid()))
+	if err != nil {
+		return fmt.Errorf("setting const_dns_proxy_pid port variable failed: %w", err)
 	}
 
 	// Load the compiled eBPF ELF and load it into the kernel.

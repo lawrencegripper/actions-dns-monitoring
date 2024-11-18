@@ -11,7 +11,8 @@
     // Use host cgroup namespace
     "--cgroupns=host",
     // Run with elevated privileges
-    "--privileged"
+    "--privileged",
+    "--pid=host"
   ],
   "mounts": [
     {
