@@ -1,6 +1,27 @@
 {
   "name": "GitHub Actions (TypeScript)",
-  "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  // Let us test cgroups in the codespace. See: https://www.whexy.com/posts/cgroup-inside-containers
+  "runArgs": [
+    // Use host user namespace
+    "--userns=host",
+    // Use host cgroup namespace
+    "--cgroupns=host",
+    // Run with elevated privileges
+    "--privileged"
+  ],
+  "mounts": [
+    {
+      "source": "/sys/fs/cgroup",
+      "target": "/sys/fs/cgroup",
+      "type": "bind"
+    }
+  ],
+  "containerUser": "root", // Lets us develop and test against systemd stuff
+  "remoteUser": "root",
   "postCreateCommand": "npm install",
   "customizations": {
     "codespaces": {
@@ -19,7 +40,8 @@
         "me-dutour-mathieu.vscode-github-actions",
         "redhat.vscode-yaml",
         "rvest.vs-code-prettier-eslint",
-        "yzhang.markdown-all-in-one"
+        "yzhang.markdown-all-in-one",
+        "golang.go"
       ],
       "settings": {
         "editor.defaultFormatter": "esbenp.prettier-vscode",

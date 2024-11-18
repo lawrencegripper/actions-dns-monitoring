@@ -1,0 +1,65 @@
+package ebpf
+
+// Generate the eBPF code in dns_redirector.c 👇 this causes go to do that when `go build` is run
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go dnsredirector dns_redirector.c
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/cilium/ebpf"
+	"github.com/cilium/ebpf/link"
+	"github.com/cilium/ebpf/rlimit"
+)
+
+// Generate the eBPF code in dns_redirector.c
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go dnsredirector dns_redirector.c
+
+// AttachRedirectorToCGroup attaches the eBPF program to the cgroup at the specified path.
+func AttachRedirectorToCGroup(cGroupPath string, dnsProxyPort int) error {
+	// Remove resource limits for kernels <5.11.
+	if err := rlimit.RemoveMemlock(); err != nil {
+		return fmt.Errorf("removing memlock: %w", err)
+	}
+
+	// Load network block spec
+	spec, err := loadDnsredirector()
+	if err != nil {
+		return fmt.Errorf("loading networkblock spec: %w", err)
+	}
+
+	// Set the port which the DNS requests should be forwarded to on localhost
+	// this allows us to have multiple hooks each with their own server running at the same time
+	if dnsProxyPort < 0 || dnsProxyPort > 4294967295 {
+		return fmt.Errorf("dnsProxyPort value %d out of range for uint32", dnsProxyPort)
+	}
+
+	err = spec.Variables["const_dns_proxy_port"].Set(uint32(dnsProxyPort)) //nolint:gosec // DNSProxyPort is checked above to be in range
+	if err != nil {
+		return fmt.Errorf("setting const_dns_proxy_port port variable failed: %w", err)
+	}
+
+	// Load the compiled eBPF ELF and load it into the kernel.
+	var obj dnsredirectorPrograms
+	if err := spec.LoadAndAssign(&obj, nil); err != nil {
+		return fmt.Errorf("loading and assigning eBPF programs: %w", err)
+	}
+
+	cgroup, err := os.Open(cGroupPath)
+	if err != nil {
+		return fmt.Errorf("opening cgroup path %s: %w", cGroupPath, err)
+	}
+	defer cgroup.Close()
+
+	_, err = link.AttachCgroup(link.CgroupOptions{
+		Path:    cgroup.Name(),
+		Attach:  ebpf.AttachCGroupInet4Connect,
+		Program: obj.Connect4,
+	})
+	if err != nil {
+		return fmt.Errorf("attaching eBPF program to cgroup: %w", err)
+	}
+
+	fmt.Printf("Successfully attached eBPF programs to cgroup blocking network traffic\n")
+	return nil
+}
