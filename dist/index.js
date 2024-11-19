@@ -25657,52 +25657,81 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.run = run;
 const core = __importStar(__nccwpck_require__(7484));
-const wait_1 = __nccwpck_require__(910);
+const { spawn } = __nccwpck_require__(5317);
+const currentDir = (__nccwpck_require__(6928).dirname)(require.main?.filename || __dirname);
+const fs = __nccwpck_require__(9896);
+function getDnsMonitorPid() {
+    return core.getState('dns-monitor-pid');
+}
+function setDnsMonitorPid(pid) {
+    core.saveState('dns-monitor-pid', pid);
+}
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
  */
 async function run() {
     try {
-        const ms = core.getInput('milliseconds');
-        // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-        core.debug(`Waiting ${ms} milliseconds ...`);
-        // Log the current timestamp, wait, then log the new timestamp
-        core.debug(new Date().toTimeString());
-        await (0, wait_1.wait)(parseInt(ms, 10));
-        core.debug(new Date().toTimeString());
-        // Set outputs for other workflow steps to use
-        core.setOutput('time', new Date().toTimeString());
+        const pid = parseInt(getDnsMonitorPid());
+        if (pid) {
+            // This is a post-run step
+            core.debug(`This is a post-run step and dns monitor is already running ${pid}`);
+            if (pid) {
+                core.debug(`Sending SIGINT to dns monitor process ${pid}`);
+                process.kill(pid, 'SIGINT');
+            }
+            // Wait for process to exit
+            await new Promise(resolve => {
+                const checkInterval = setInterval(() => {
+                    try {
+                        process.kill(pid, 0);
+                    }
+                    catch {
+                        clearInterval(checkInterval);
+                        resolve();
+                    }
+                }, 100);
+            });
+            // output captured logs
+            try {
+                const logContent = fs.readFileSync('/tmp/dnsrequests.log', 'utf8');
+                core.info('DNS Requests Log:');
+                core.info(logContent);
+            }
+            catch (err) {
+                core.warning('Could not read DNS requests log: ' + err);
+            }
+            try {
+                const blockedContent = fs.readFileSync('/tmp/dnsblocked.log', 'utf8');
+                core.warning('DNS Blocked Requests:');
+                core.warning(blockedContent);
+            }
+            catch (err) {
+                core.warning('Could not read DNS blocked requests log: ' + err);
+            }
+            return;
+        }
+        else {
+            core.debug(`Current directory: ${currentDir}`);
+            core.debug(`Running dns-cgroup-monitor... from ${currentDir}`);
+            const monitor = spawn('sudo', [`${currentDir}/dist/dns-cgroup-monitor`], {
+                stdio: 'ignore', // piping all stdio to /dev/null
+                detached: true,
+                env: process.env
+            });
+            const dnsMonitorPid = monitor.pid.toString();
+            setDnsMonitorPid(dnsMonitorPid);
+            core.debug(`dns monitor pid: ${dnsMonitorPid}`);
+            monitor.unref();
+            // Set outputs for other workflow steps to use
+            core.setOutput('time', new Date().toTimeString());
+        }
     }
     catch (error) {
         // Fail the workflow run if an error occurs
         if (error instanceof Error)
             core.setFailed(error.message);
     }
-}
-
-
-/***/ }),
-
-/***/ 910:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.wait = wait;
-/**
- * Wait for a number of milliseconds.
- * @param milliseconds The number of milliseconds to wait.
- * @returns {Promise<string>} Resolves with 'done!' after the wait is over.
- */
-async function wait(milliseconds) {
-    return new Promise(resolve => {
-        if (isNaN(milliseconds)) {
-            throw new Error('milliseconds not a number');
-        }
-        setTimeout(() => resolve('done!'), milliseconds);
-    });
 }
 
 
