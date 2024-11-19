@@ -1,6 +1,15 @@
 import * as core from '@actions/core'
-import { wait } from './wait'
-const { exec } = require('child_process')
+import { get } from 'http'
+const { spawn } = require('child_process')
+const currentDir = require('path').dirname(require.main?.filename || __dirname)
+
+function getDnsMonitorPid() {
+  return core.getState('dns-monitor-pid')
+}
+
+function setDnsMonitorPid(pid: string) {
+  core.saveState('dns-monitor-pid', pid)
+}
 
 /**
  * The main function for the action.
@@ -8,32 +17,36 @@ const { exec } = require('child_process')
  */
 export async function run(): Promise<void> {
   try {
-    const ms: string = core.getInput('milliseconds')
+    const pid = parseInt(getDnsMonitorPid())
+    if (pid) {
+      // This is a post-run step
+      core.debug(
+        `This is a post-run step and dns monitor is already running ${pid}`
+      )
 
-    // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-    core.debug(`Waiting ${ms} milliseconds ...`)
-
-    // Log the current timestamp, wait, then log the new timestamp
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
-    core.debug(new Date().toTimeString())
-
-    exec(
-      'sudo dns-cgroup-monitor',
-      (error: Error | null, stdout: string, stderr: string) => {
-        if (error) {
-          core.setFailed(`Error executing dns-cgroup-monitor: ${error.message}`)
-          return
-        }
-        if (stderr) {
-          core.warning(`dns-cgroup-monitor stderr: ${stderr}`)
-        }
-        core.debug(`dns-cgroup-monitor stdout: ${stdout}`)
+      if (pid) {
+        core.debug(`Sending SIGINT to dns monitor process ${pid}`)
+        process.kill(pid, 'SIGINT')
       }
-    )
 
-    // Set outputs for other workflow steps to use
-    core.setOutput('time', new Date().toTimeString())
+      return
+    } else {
+      core.debug(`Current directory: ${currentDir}`)
+      core.debug(`Running dns-cgroup-monitor... from ${currentDir}`)
+      const monitor = spawn('sudo', [`${currentDir}/dist/dns-cgroup-monitor`], {
+        stdio: 'ignore', // piping all stdio to /dev/null
+        detached: true,
+        env: process.env
+      })
+
+      const dnsMonitorPid = monitor.pid.toString()
+      setDnsMonitorPid(dnsMonitorPid)
+      core.debug(`dns monitor pid: ${dnsMonitorPid}`)
+      monitor.unref()
+
+      // Set outputs for other workflow steps to use
+      core.setOutput('time', new Date().toTimeString())
+    }
   } catch (error) {
     // Fail the workflow run if an error occurs
     if (error instanceof Error) core.setFailed(error.message)

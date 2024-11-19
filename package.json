@@ -24,7 +24,7 @@
     "node": ">=21"
   },
   "scripts": {
-    "go-build": "go generate ./... && go build -o ./dist/dns-cgroup-monitor ./cmd/main.go && chmod +x ./dist/dns-cgroup-monitor",
+    "go-build": "CGO_ENABLED=0 go generate ./... && CGO_ENABLED=0 go build -o ./dist/dns-cgroup-monitor ./cmd/main.go && chmod +x ./dist/dns-cgroup-monitor",
     "bundle": "npm run format:write && npm run package",
     "ci-test": "npx jest",
     "coverage": "npx make-coverage-badge --output-path ./badges/coverage.svg",

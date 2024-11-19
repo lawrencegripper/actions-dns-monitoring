@@ -62,14 +62,29 @@ func main() {
 
 	fmt.Println("Sig int received, shutting down")
 
-	fmt.Println("DNS Requests Log:")
+	// Write DNS requests log to file
+	requestsFile, err := os.Create("/tmp/dnsrequests.log")
+	if err != nil {
+		fmt.Printf("Failed to create requests log file: %v\n", err)
+		os.Exit(106)
+	}
+	defer requestsFile.Close()
+
 	for requestedDomain, logEntry := range dns.BlockingDNSHandler.DNSLog {
-		fmt.Println(requestedDomain)
-		fmt.Println(logEntry)
+		fmt.Fprintf(requestsFile, "Domain: %s\n%v\n\n", requestedDomain, logEntry)
 	}
 
-	fmt.Println("Blocked Requests Log:")
-	for _, logEntry := range dns.BlockingDNSHandler.BlockLog {
-		fmt.Println(logEntry)
+	// Write blocked requests log to file
+	blockedFile, err := os.Create("/tmp/dnsblocked.log")
+	if err != nil {
+		fmt.Printf("Failed to create blocked log file: %v\n", err)
+		os.Exit(107)
 	}
+	defer blockedFile.Close()
+
+	for _, logEntry := range dns.BlockingDNSHandler.BlockLog {
+		fmt.Fprintf(blockedFile, "%v\n", logEntry)
+	}
+
+	fmt.Println("DNS logs written to /tmp/dnsrequests.log and /tmp/dnsblocked.log")
 }
