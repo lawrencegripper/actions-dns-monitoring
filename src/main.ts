@@ -2,6 +2,7 @@ import * as core from '@actions/core'
 import { get } from 'http'
 const { spawn } = require('child_process')
 const currentDir = require('path').dirname(require.main?.filename || __dirname)
+const fs = require('fs')
 
 function getDnsMonitorPid() {
   return core.getState('dns-monitor-pid')
@@ -29,6 +30,34 @@ export async function run(): Promise<void> {
         process.kill(pid, 'SIGINT')
       }
 
+      // Wait for process to exit
+      await new Promise<void>(resolve => {
+        const checkInterval = setInterval(() => {
+          try {
+            process.kill(pid, 0)
+          } catch {
+            clearInterval(checkInterval)
+            resolve()
+          }
+        }, 100)
+      })
+
+      // output captured logs
+      try {
+        const logContent = fs.readFileSync('/tmp/dnsrequests.log', 'utf8')
+        core.info('DNS Requests Log:')
+        core.info(logContent)
+      } catch (err) {
+        core.warning('Could not read DNS requests log: ' + err)
+      }
+
+      try {
+        const blockedContent = fs.readFileSync('/tmp/dnsblocked.log', 'utf8')
+        core.warning('DNS Blocked Requests:')
+        core.warning(blockedContent)
+      } catch (err) {
+        core.warning('Could not read DNS blocked requests log: ' + err)
+      }
       return
     } else {
       core.debug(`Current directory: ${currentDir}`)
