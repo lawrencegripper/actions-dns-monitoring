@@ -24,6 +24,11 @@ export async function run(): Promise<void> {
         `This is a post-run step and dns monitor is already running ${pid}`
       )
 
+      if (pid) {
+        core.debug(`Sending SIGINT to dns monitor process ${pid}`)
+        process.kill(pid, 'SIGINT')
+      }
+
       try {
         const monitorContent = fs.readFileSync('/tmp/dns-monitor.log', 'utf8')
         core.info('DNS Monitor Log:')
@@ -32,22 +37,11 @@ export async function run(): Promise<void> {
         core.warning('Could not read DNS monitor log: ' + err)
       }
 
-      if (pid) {
-        core.debug(`Sending SIGINT to dns monitor process ${pid}`)
-        process.kill(pid, 'SIGINT')
+      try {
+        process.kill(pid)
+      } catch (err) {
+        core.warning('Could not kill DNS monitor process: ' + err)
       }
-
-      // Wait for process to exit
-      await new Promise<void>(resolve => {
-        const checkInterval = setInterval(() => {
-          try {
-            process.kill(pid, 0)
-          } catch {
-            clearInterval(checkInterval)
-            resolve()
-          }
-        }, 100)
-      })
 
       // output captured logs
       try {

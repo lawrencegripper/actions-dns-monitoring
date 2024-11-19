@@ -59,6 +59,10 @@ jobs:
         with:
           milliseconds: 2000
 
+      - name: Test Curl
+        id: test-curl
+        run: curl bing.com
+
       - name: Print Output
         id: output
         run: echo "${{ steps.test-action.outputs.time }}"

@@ -74,7 +74,6 @@ func main() {
 		fmt.Fprintf(requestsFile, "Domain: %s\n%v\n\n", requestedDomain, logEntry)
 	}
 
-	// Write blocked requests log to file
 	blockedFile, err := os.Create("/tmp/dnsblocked.log")
 	if err != nil {
 		fmt.Printf("Failed to create blocked log file: %v\n", err)
