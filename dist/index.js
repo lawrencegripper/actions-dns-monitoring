@@ -25676,6 +25676,14 @@ async function run() {
         if (pid) {
             // This is a post-run step
             core.debug(`This is a post-run step and dns monitor is already running ${pid}`);
+            try {
+                const monitorContent = fs.readFileSync('/tmp/dns-monitor.log', 'utf8');
+                core.info('DNS Monitor Log:');
+                core.info(monitorContent);
+            }
+            catch (err) {
+                core.warning('Could not read DNS monitor log: ' + err);
+            }
             if (pid) {
                 core.debug(`Sending SIGINT to dns monitor process ${pid}`);
                 process.kill(pid, 'SIGINT');
@@ -25714,7 +25722,11 @@ async function run() {
         else {
             core.debug(`Current directory: ${currentDir}`);
             core.debug(`Running dns-cgroup-monitor... from ${currentDir}`);
-            const monitor = spawn('sudo', [`${currentDir}/dist/dns-cgroup-monitor`], {
+            const monitor = spawn('sudo', [
+                '/bin/bash',
+                '-c',
+                `${currentDir}/dist/dns-cgroup-monitor > /tmp/dns-monitor.log 2>&1`
+            ], {
                 stdio: 'ignore', // piping all stdio to /dev/null
                 detached: true,
                 env: process.env
@@ -25722,6 +25734,8 @@ async function run() {
             const dnsMonitorPid = monitor.pid.toString();
             setDnsMonitorPid(dnsMonitorPid);
             core.debug(`dns monitor pid: ${dnsMonitorPid}`);
+            monitor.on('error', (err) => core.debug(`dns monitor error: ${err}`));
+            monitor.on('close', () => core.debug('dns monitor process exited'));
             monitor.unref();
             // Set outputs for other workflow steps to use
             core.setOutput('time', new Date().toTimeString());

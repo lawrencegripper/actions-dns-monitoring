@@ -1,5 +1,4 @@
 import * as core from '@actions/core'
-import { get } from 'http'
 const { spawn } = require('child_process')
 const currentDir = require('path').dirname(require.main?.filename || __dirname)
 const fs = require('fs')
@@ -24,6 +23,14 @@ export async function run(): Promise<void> {
       core.debug(
         `This is a post-run step and dns monitor is already running ${pid}`
       )
+
+      try {
+        const monitorContent = fs.readFileSync('/tmp/dns-monitor.log', 'utf8')
+        core.info('DNS Monitor Log:')
+        core.info(monitorContent)
+      } catch (err) {
+        core.warning('Could not read DNS monitor log: ' + err)
+      }
 
       if (pid) {
         core.debug(`Sending SIGINT to dns monitor process ${pid}`)
@@ -62,15 +69,25 @@ export async function run(): Promise<void> {
     } else {
       core.debug(`Current directory: ${currentDir}`)
       core.debug(`Running dns-cgroup-monitor... from ${currentDir}`)
-      const monitor = spawn('sudo', [`${currentDir}/dist/dns-cgroup-monitor`], {
-        stdio: 'ignore', // piping all stdio to /dev/null
-        detached: true,
-        env: process.env
-      })
+      const monitor = spawn(
+        'sudo',
+        [
+          '/bin/bash',
+          '-c',
+          `${currentDir}/dist/dns-cgroup-monitor > /tmp/dns-monitor.log 2>&1`
+        ],
+        {
+          stdio: 'ignore', // piping all stdio to /dev/null
+          detached: true,
+          env: process.env
+        }
+      )
 
       const dnsMonitorPid = monitor.pid.toString()
       setDnsMonitorPid(dnsMonitorPid)
       core.debug(`dns monitor pid: ${dnsMonitorPid}`)
+      monitor.on('error', (err: any) => core.debug(`dns monitor error: ${err}`))
+      monitor.on('close', () => core.debug('dns monitor process exited'))
       monitor.unref()
 
       // Set outputs for other workflow steps to use
