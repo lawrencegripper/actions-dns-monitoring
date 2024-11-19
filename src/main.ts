@@ -74,7 +74,7 @@ export async function run(): Promise<void> {
         [
           '/bin/bash',
           '-c',
-          `${currentDir}/dist/dns-cgroup-monitor > /tmp/dns-monitor.log 2>&1`
+          `${currentDir}/dns-cgroup-monitor > /tmp/dns-monitor.log 2>&1`
         ],
         {
           stdio: 'ignore', // piping all stdio to /dev/null
