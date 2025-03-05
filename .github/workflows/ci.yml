@@ -61,7 +61,7 @@ jobs:
 
       - name: Test Curl
         id: test-curl
-        run: curl bing.com
+        run: curl example.com
 
       - name: Print Output
         id: output

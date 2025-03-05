@@ -30,7 +30,7 @@ export async function run(): Promise<void> {
       }
 
       try {
-        const monitorContent = fs.readFileSync('/tmp/dns-monitor.log', 'utf8')
+        const monitorContent = fs.readFileSync('/tmp/dns-monitor.json', 'utf8')
         core.info('DNS Monitor Log:')
         core.info(monitorContent)
       } catch (err) {
@@ -63,12 +63,13 @@ export async function run(): Promise<void> {
     } else {
       core.debug(`Current directory: ${currentDir}`)
       core.debug(`Running dns-cgroup-monitor... from ${currentDir}`)
+      const blockList = process.env.BLOCK_LIST || ''
       const monitor = spawn(
         'sudo',
         [
           '/bin/bash',
           '-c',
-          `exec ${currentDir}/dns-cgroup-monitor > /tmp/dns-monitor.log 2>&1`
+          `exec ${currentDir}/ebpf-cgroup-firewall --block-list ${blockList} --attach --log-file /tmp/dns-monitor.json 2>&1`
         ],
         {
           stdio: 'ignore', // piping all stdio to /dev/null
