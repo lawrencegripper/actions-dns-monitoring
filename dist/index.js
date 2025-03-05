@@ -25705,7 +25705,7 @@ async function run() {
             const monitor = spawn('sudo', [
                 '/bin/bash',
                 '-c',
-                `exec ${currentDir}/ebpf-cgroup-firewall attach --block-list '${blockList}' --log-file /tmp/dns-monitor.json`
+                `exec ${currentDir}/ebpf-cgroup-firewall attach --debug --block-list '${blockList}' --log-file /tmp/dns-monitor.json`
             ], {
                 stdio: 'ignore', // piping all stdio to /dev/null
                 detached: true,
