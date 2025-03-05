@@ -11,6 +11,9 @@ on:
 permissions:
   contents: read
 
+env:
+  ACTIONS_STEP_DEBUG: true
+
 jobs:
   test-typescript:
     name: TypeScript Tests
@@ -53,16 +56,20 @@ jobs:
         id: checkout
         uses: actions/checkout@v4
 
-      - name: Test Local Action
+      - name: Attach/Start eBPF Firewall
         id: test-action
         uses: ./
         with:
           milliseconds: 2000
+        env:
+          BLOCK_LIST: 'example.com,1.1.1.1'
 
-      - name: Test Curl
-        id: test-curl
-        run: curl example.com
+      - name: Test Curl example.com
+        id: test-curl-1
+        run: |
+          curl --max-time 5 example.com || true
+          curl --max-time 5 1.1.1.1
 
-      - name: Print Output
-        id: output
-        run: echo "${{ steps.test-action.outputs.time }}"
+      - name: Test Curl bing.com
+        id: test-curl-3
+        run: curl bing.com

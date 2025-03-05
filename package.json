@@ -24,7 +24,6 @@
     "node": ">=21"
   },
   "scripts": {
-    "go-build": "CGO_ENABLED=0 go generate ./... && CGO_ENABLED=0 go build -o ./dist/dns-cgroup-monitor ./cmd/main.go && chmod +x ./dist/dns-cgroup-monitor",
     "bundle": "npm run format:write && npm run package",
     "ci-test": "npx jest",
     "coverage": "npx make-coverage-badge --output-path ./badges/coverage.svg",
@@ -32,7 +31,7 @@
     "format:check": "npx prettier --check .",
     "lint": "npx eslint . -c ./.github/linters/.eslintrc.yml",
     "local-action": "npx local-action . src/main.ts .env",
-    "package": "npm run go-build && npx ncc build src/index.ts -o dist --source-map --license licenses.txt",
+    "package": "npx ncc build src/index.ts -o dist --source-map --license licenses.txt",
     "package:watch": "npm run package -- --watch",
     "test": "npx jest",
     "all": "npm run format:write && npm run lint && npm run test && npm run coverage && npm run package"

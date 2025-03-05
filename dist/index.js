@@ -25675,13 +25675,9 @@ async function run() {
         const pid = parseInt(getDnsMonitorPid());
         if (pid) {
             // This is a post-run step
-            core.debug(`This is a post-run step and dns monitor is already running ${pid}`);
-            if (pid) {
-                core.debug(`Sending SIGINT to dns monitor process ${pid}`);
-                process.kill(pid, 'SIGINT');
-            }
+            core.warning(`This is a post-run step and dns monitor is already running ${pid}`);
             try {
-                const monitorContent = fs.readFileSync('/tmp/dns-monitor.log', 'utf8');
+                const monitorContent = fs.readFileSync('/tmp/dns-monitor.json', 'utf8');
                 core.info('DNS Monitor Log:');
                 core.info(monitorContent);
             }
@@ -25689,37 +25685,27 @@ async function run() {
                 core.warning('Could not read DNS monitor log: ' + err);
             }
             try {
-                process.kill(pid);
+                const monitorContent = fs.readFileSync('/tmp/ebpf-firewall-start.txt', 'utf8');
+                core.info('DNS Monitor Log:');
+                core.info(monitorContent);
             }
             catch (err) {
-                core.warning('Could not kill DNS monitor process: ' + err);
+                core.warning('Could not read DNS monitor log: ' + err);
             }
-            // output captured logs
-            try {
-                const logContent = fs.readFileSync('/tmp/dnsrequests.log', 'utf8');
-                core.info('DNS Requests Log:');
-                core.info(logContent);
-            }
-            catch (err) {
-                core.warning('Could not read DNS requests log: ' + err);
-            }
-            try {
-                const blockedContent = fs.readFileSync('/tmp/dnsblocked.log', 'utf8');
-                core.warning('DNS Blocked Requests:');
-                core.warning(blockedContent);
-            }
-            catch (err) {
-                core.warning('Could not read DNS blocked requests log: ' + err);
+            if (pid) {
+                core.warning(`Sending SIGINT to dns monitor process ${pid}`);
+                process.kill(pid, 'SIGINT');
             }
             return;
         }
         else {
-            core.debug(`Current directory: ${currentDir}`);
-            core.debug(`Running dns-cgroup-monitor... from ${currentDir}`);
+            core.warning(`Current directory: ${currentDir}`);
+            core.warning(`Running dns-cgroup-monitor... from ${currentDir}`);
+            const blockList = process.env.BLOCK_LIST || 'example.com';
             const monitor = spawn('sudo', [
                 '/bin/bash',
                 '-c',
-                `exec ${currentDir}/dns-cgroup-monitor > /tmp/dns-monitor.log 2>&1`
+                `exec ${currentDir}/ebpf-cgroup-firewall attach --block-list '${blockList}' --log-file /tmp/dns-monitor.json`
             ], {
                 stdio: 'ignore', // piping all stdio to /dev/null
                 detached: true,
@@ -25727,9 +25713,9 @@ async function run() {
             });
             const dnsMonitorPid = monitor.pid.toString();
             setDnsMonitorPid(dnsMonitorPid);
-            core.debug(`dns monitor pid: ${dnsMonitorPid}`);
-            monitor.on('error', (err) => core.debug(`dns monitor error: ${err}`));
-            monitor.on('close', () => core.debug('dns monitor process exited'));
+            core.warning(`dns monitor pid: ${dnsMonitorPid}`);
+            monitor.on('error', (err) => core.warning(`dns monitor error: ${err}`));
+            monitor.on('close', () => core.warning('dns monitor process exited'));
             monitor.unref();
             // Set outputs for other workflow steps to use
             core.setOutput('time', new Date().toTimeString());
